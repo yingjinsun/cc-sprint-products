@@ -1,5 +1,6 @@
 configparser==5.0.2
 Django==2.2
+django-cors-headers==3.10.0
 djangorestframework==3.12.4
 mysql-connector-python==8.0.26
 mysqlclient
