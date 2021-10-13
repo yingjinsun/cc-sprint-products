@@ -1,4 +1,5 @@
 from ConstantUtil import Constant
+
 class Response(object):
 
     def __init__(self):
