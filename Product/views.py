@@ -8,6 +8,9 @@ from Product.models import Product
 from Product.serializers import ProductSerializer
 from rest_framework.decorators import api_view
 from ResponseUtil import Response
+
+import Product.dynamo.dynamodb as db
+import json
 # Create your views here.
 
 @api_view(['GET', 'POST'])
@@ -50,3 +53,37 @@ def product_detail(request, pk):
     elif request.method == 'DELETE':
         product.delete()
         return JsonResponse(Response().success({}), status=status.HTTP_200_OK)
+
+@api_view(['GET', 'POST', 'DELETE'])
+def product_comments(request, pk):
+    try:
+        product = Product.objects.get(pk=pk)
+    except Product.DoesNotExist:
+        return JsonResponse({'message': 'The product does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        print(request.__dict__.items())
+        filter = {"comment_id": pk}
+        res = db.find_by_template("comments", filter)
+        print("test_filter: result = \n", json.dumps(res, indent=3))
+        return JsonResponse(Response().success(json.dumps(res)), status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        '''
+        try:
+            comment_data = JSONParser().parse(request)
+            comment_serializer = ProductSerializer(data=comment_data)
+        except:
+            return JsonResponse({'message': 'Nothing post!'}, status=status.HTTP_404_NOT_FOUND)
+        if comment_serializer.is_valid():
+            res = db.add_comment()
+            return JsonResponse(Response().success(json.dumps(res)), status=status.HTTP_200_OK)
+        '''
+        return JsonResponse(Response().failed(), status=status.HTTP_404_NOT_FOUND)
+
+    elif request.method == 'DELETE':
+        filter = {"comment_id": pk}
+        if db.delete_item("comments", filter):
+            return JsonResponse(Response().success({}), status=status.HTTP_200_OK)
+        else:
+            return JsonResponse(Response().failed(), status=status.HTTP_404_NOT_FOUND)
