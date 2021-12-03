@@ -18,8 +18,9 @@ import uuid
 #
 dynamodb = boto3.resource('dynamodb',
                             region_name="us-east-1",
-                            aws_access_key_id='AKIARMJPIQNEITHODHKF',
-                            aws_secret_access_key='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')
+                            #aws_access_key_id='',
+                            #aws_secret_access_key=''
+                         )
 
 # other_client = boto3.client("dynamodb")
 
