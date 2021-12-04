@@ -54,35 +54,71 @@ def product_detail(request, pk):
         product.delete()
         return JsonResponse(Response().success({}), status=status.HTTP_200_OK)
 
-@api_view(['GET', 'POST', 'DELETE'])
+@api_view(['GET', 'POST', 'PUT', 'DELETE'])
 def product_comments(request, pk):
+    filter = {"comment_id": pk}
     try:
         product = Product.objects.get(pk=pk)
     except Product.DoesNotExist:
         return JsonResponse({'message': 'The product does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        print(request.__dict__.items())
-        filter = {"comment_id": pk}
+        if db.get_item("comments", filter) == None:
+            return JsonResponse({'message': 'The comment does not exist'}, status=status.HTTP_404_NOT_FOUND)
         res = db.find_by_template("comments", filter)
         print("test_filter: result = \n", json.dumps(res, indent=3))
-        return JsonResponse(Response().success(json.dumps(res)), status=status.HTTP_200_OK)
+        return JsonResponse(Response().success(res), status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
-        '''
-        try:
-            comment_data = JSONParser().parse(request)
-            comment_serializer = ProductSerializer(data=comment_data)
-        except:
-            return JsonResponse({'message': 'Nothing post!'}, status=status.HTTP_404_NOT_FOUND)
-        if comment_serializer.is_valid():
-            res = db.add_comment()
-            return JsonResponse(Response().success(json.dumps(res)), status=status.HTTP_200_OK)
-        '''
+        if request.POST.get("response") != None:
+            if db.get_item("comments", filter) == None:
+                return JsonResponse({'message': 'The comment does not exist'}, status=status.HTTP_404_NOT_FOUND)
+            params = {}
+            for key, value in request.POST.items():
+                print(f'Key: {key}')
+                print(f'Value: {value}')
+                params[key] = value
+            params["comment_id"] = pk
+
+            if db.is_valid_response(params):
+                res = db.add_response("comments", params["comment_id"], params["commenter_email"], params["response"])
+                return JsonResponse(Response().success(res), status=status.HTTP_200_OK)
+            return JsonResponse(Response().failed(), status=status.HTTP_404_NOT_FOUND)
+        else:
+            if request.POST.get("comment") != None:
+                params = {}
+                for key, value in request.POST.items():
+                    print(f'Key: {key}')
+                    print(f'Value: {value}')
+                    params[key] = value
+                params["comment_id"] = pk
+            else:
+                return JsonResponse({'message': 'Nothing post!'}, status=status.HTTP_404_NOT_FOUND)
+
+            if db.is_valid_comment(params):
+                res = db.add_comment(params["comment_id"], params["email"], params["comment"], params["tags"])
+                return JsonResponse(Response().success(res), status=status.HTTP_200_OK)
+            return JsonResponse(Response().failed(), status=status.HTTP_404_NOT_FOUND)
+
+    elif request.method == 'PUT':
+        if db.get_item("comments", filter) == None:
+            return JsonResponse({'message': 'The comment does not exist'}, status=status.HTTP_404_NOT_FOUND)
+        if request.POST.get("comment") != None:
+            params = {}
+            for key, value in request.POST.items():
+                print(f'Key: {key}')
+                print(f'Value: {value}')
+                params[key] = value
+            params["comment_id"] = pk
+        else:
+            return JsonResponse({'message': 'Nothing update!'}, status=status.HTTP_404_NOT_FOUND)
+
+        if db.is_valid_new_comment(params):
+            res = db.update_comment(params["comment_id"], params["comment"])
+            return JsonResponse(Response().success(res), status=status.HTTP_200_OK)
         return JsonResponse(Response().failed(), status=status.HTTP_404_NOT_FOUND)
 
     elif request.method == 'DELETE':
-        filter = {"comment_id": pk}
         if db.delete_item("comments", filter):
             return JsonResponse(Response().success({}), status=status.HTTP_200_OK)
         else:
