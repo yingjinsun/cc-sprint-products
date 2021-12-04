@@ -18,9 +18,8 @@ import uuid
 #
 dynamodb = boto3.resource('dynamodb',
                             region_name="us-east-1",
-                            #aws_access_key_id='',
-                            #aws_secret_access_key=''
-                         )
+                            aws_access_key_id='AKIARMJPIQNEITHODHKF',
+                            aws_secret_access_key='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')
 
 # other_client = boto3.client("dynamodb")
 
@@ -39,6 +38,7 @@ def delete_item(table_name, key_value):
     table = dynamodb.Table(table_name)
 
     try:
+        print(key_value)
         table.delete_item(Key=key_value)
         print("Successfully deleted!")
         return True
@@ -112,7 +112,6 @@ def add_response(table_name, comment_id, commenter_email, response):
         "datetime": dts,
         "response": response,
         "response_id": str(uuid.uuid4()),
-        "version_id": str(uuid.uuid4())
     }
     UpdateExpression="SET responses = list_append(responses, :i)"
     ExpressionAttributeValues={
@@ -144,16 +143,47 @@ def find_by_template(table_name, template):
     return result
 
 
-def add_comment(email, comment, tags):
+def add_comment(comment_id, email, comment, tags):
     dt = time.time()
     dts = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(dt))
 
     item = {
-        "comment_id": str(uuid.uuid4()),
-        "version_id": str(uuid.uuid4()),
+        "comment_id": comment_id,
         "email": email,
         "comment": comment,
         "tags": tags,
+        "datetime": dts,
+        "responses": []
+    }
+
+    res = put_item("comments", item=item)
+
+    return res
+
+def form_comment(comment_id, email, comment, tags):
+    dt = time.time()
+    dts = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(dt))
+
+    item = {
+        "comment_id": comment_id,
+        "email": email,
+        "comment": comment,
+        "tags": tags,
+        "datetime": dts,
+        "responses": []
+    }
+
+    return item
+
+def add_comment_test():
+    dt = time.time()
+    dts = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(dt))
+
+    item = {
+        "comment_id": "1",
+        "email": "ll3504@columbia.edu",
+        "comment": "Everything is awesome?",
+        "tags": "Daily",
         "datetime": dts,
         "responses": []
     }
@@ -174,6 +204,36 @@ def find_by_tag(tag):
                         ExpressionAttributeValues=expressionAttributes)
     return result
 
+def update_comment(comment_id, new_comment):
+    table = dynamodb.Table("comments")
+    table.update_item(
+        Key={
+            'comment_id': comment_id,
+        },
+        UpdateExpression='SET #ts = :val1',
+        ExpressionAttributeValues={
+            ':val1': new_comment
+        },
+        ExpressionAttributeNames={
+            "#ts": "comment"
+        }
+    )
+    dt = time.time()
+    dts = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(dt))
+    table.update_item(
+        Key={
+            'comment_id': comment_id,
+        },
+        UpdateExpression='SET #ts = :val1',
+        ExpressionAttributeValues={
+            ':val1': dts
+        },
+        ExpressionAttributeNames={
+            "#ts": "datetime"
+        }
+    )
+
+    return "Updated successfullt!"
 
 def write_comment_if_not_changed(new_comment, old_comment):
 
@@ -191,11 +251,23 @@ def write_comment_if_not_changed(new_comment, old_comment):
     )
 
     return res
-"""
-keyvalue = {}
-keyvalue["comment_id"] = "984b90ff-0887-4291-afc4-7854bf452ac8"
-print(get_item("comments", keyvalue))
 
+def is_valid_comment(params):
+    return "comment_id" in params and "tags" in params and "email" in params and "comment" in params
+
+def is_valid_new_comment(params):
+    return "comment_id" in params and "comment" in params
+
+def is_valid_response(params):
+    return "comment_id" in params and "commenter_email" in params and "response" in params
+
+
+#add_comment_test()
+
+keyvalue = {"comment_id": "1"}
+#delete_item("comments", keyvalue)
+#print(find_by_template("comments", keyvalue))
+"""
 
 /comments?email=welleynep6@bbc.co.uk
 
