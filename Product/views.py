@@ -155,5 +155,3 @@ def product_comments(request, pk):
             return JsonResponse(Response().success({}), status=status.HTTP_200_OK)
         else:
             return JsonResponse(Response().failed(), status=status.HTTP_404_NOT_FOUND)
-
-        return JsonResponse(Response().resp(Constant().DELETE,{}), status=status.HTTP_204_NO_CONTENT)

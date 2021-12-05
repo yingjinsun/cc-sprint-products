@@ -303,19 +303,11 @@ keyvalue = {"comment_id": "5"}
 #print("Connected!")
 #print(find_by_template("comments", keyvalue))
 """
-
 /comments?email=welleynep6@bbc.co.uk
-
 /api/comments?tags=science,math
-
 update expression set balance=balance+50
-
-
 POST /comments/1234/responses
 GET /comments/1234/responses
-
-
-
 """
 
 
