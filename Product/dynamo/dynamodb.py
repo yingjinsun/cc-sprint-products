@@ -18,8 +18,8 @@ import uuid
 #
 dynamodb = boto3.resource('dynamodb',
                             region_name="us-east-1",
-                            aws_access_key_id='',
-                            aws_secret_access_key='')
+                            aws_access_key_id='AKIARMJPIQNEITHODHKF',
+                            aws_secret_access_key='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')
 
 # other_client = boto3.client("dynamodb")
 
@@ -34,15 +34,23 @@ def get_item(table_name, key_value):
     response = response.get('Item', None)
     return response
 
-def delete_item(table_name, key_value):
+def get_version_id(table_name, key_value):
     table = dynamodb.Table(table_name)
 
-    try:
-        print(key_value)
+    response = table.get_item(
+        Key=key_value
+    )
+    res = response.get('Item', None)
+    return res["version_id"]
+
+def delete_item(table_name, key_value):
+
+    table = dynamodb.Table(table_name)
+    if get_item(table_name, key_value) != None:
         table.delete_item(Key=key_value)
         print("Successfully deleted!")
         return True
-    except:
+    else:
         print("Item does not exist!")
         return False
 
@@ -149,13 +157,14 @@ def add_comment(comment_id, email, comment, tags):
 
     item = {
         "comment_id": comment_id,
+        "version_id": str(uuid.uuid4()),
         "email": email,
         "comment": comment,
         "tags": tags,
         "datetime": dts,
         "responses": []
     }
-
+    table = dynamodb.Table("comments")
     res = put_item("comments", item=item)
 
     return res
@@ -166,6 +175,7 @@ def form_comment(comment_id, email, comment, tags):
 
     item = {
         "comment_id": comment_id,
+        "version_id": str(uuid.uuid4()),
         "email": email,
         "comment": comment,
         "tags": tags,
@@ -180,7 +190,8 @@ def add_comment_test():
     dts = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(dt))
 
     item = {
-        "comment_id": "1",
+        "comment_id": "5",
+        "version_id": str(uuid.uuid4()),
         "email": "ll3504@columbia.edu",
         "comment": "Everything is awesome?",
         "tags": "Daily",
@@ -206,16 +217,21 @@ def find_by_tag(tag):
 
 def update_comment(comment_id, new_comment):
     table = dynamodb.Table("comments")
+    keyvalue = {"comment_id": comment_id}
+    old_version_id = get_version_id("comments", keyvalue)
     table.update_item(
         Key={
             'comment_id': comment_id,
         },
         UpdateExpression='SET #ts = :val1',
+        ConditionExpression='#vi =:old_version_id',
         ExpressionAttributeValues={
-            ':val1': new_comment
+            ':val1': new_comment,
+            ':old_version_id': old_version_id
         },
         ExpressionAttributeNames={
-            "#ts": "comment"
+            "#ts": "comment",
+            '#vi': 'version_id'
         }
     )
     dt = time.time()
@@ -225,11 +241,29 @@ def update_comment(comment_id, new_comment):
             'comment_id': comment_id,
         },
         UpdateExpression='SET #ts = :val1',
+        ConditionExpression='#vi =:old_version_id',
         ExpressionAttributeValues={
-            ':val1': dts
+            ':val1': dts,
+            ':old_version_id': old_version_id
         },
         ExpressionAttributeNames={
-            "#ts": "datetime"
+            "#ts": "datetime",
+            "#vi": "version_id"
+        }
+    )
+    table.update_item(
+        Key={
+            'comment_id': comment_id,
+        },
+        UpdateExpression='SET #ts = :val1',
+        ConditionExpression='#vi =:old_version_id',
+        ExpressionAttributeValues={
+            ':val1': str(uuid.uuid4()),
+            ':old_version_id': old_version_id
+        },
+        ExpressionAttributeNames={
+            "#ts": "version_id",
+            "#vi": "version_id"
         }
     )
 
@@ -264,8 +298,9 @@ def is_valid_response(params):
 
 #add_comment_test()
 
-keyvalue = {"comment_id": "1"}
+keyvalue = {"comment_id": "5"}
 #delete_item("comments", keyvalue)
+#print("Connected!")
 #print(find_by_template("comments", keyvalue))
 """
 
