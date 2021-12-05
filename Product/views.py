@@ -3,39 +3,69 @@ from django.shortcuts import render
 from django.http.response import JsonResponse
 from rest_framework.parsers import JSONParser
 from rest_framework import status
-
+from rest_framework.request import Request
 from Product.models import Product
 from Product.serializers import ProductSerializer
 from rest_framework.decorators import api_view
 from ResponseUtil import Response
-
 import Product.dynamo.dynamodb as db
 import json
+from ConstantUtil import Constant
+from django.core.paginator import Paginator
 # Create your views here.
 
 @api_view(['GET', 'POST'])
 def product_list(request):
+    params = request.query_params
     if request.method == 'GET':
+        fields = []
+        count = 10
+        page_no = 0
+        try:
+            str = params.get('fields', '')
+            if str != '':
+                fields = str.split(',')
+            limit = int(params.get('limit', '10'))
+            offset = int(params.get('offset', '0'))
+            count = limit
+            page_no = offset/limit
+        except ValueError:
+            print("use default config")
+
         products = Product.objects.all()
+        page = Paginator(products, count)
+        products = page.get_page(page_no+1)
         product_serializer = ProductSerializer(products, many=True)
-        return JsonResponse(Response().success(product_serializer.data), safe=False, status=status.HTTP_200_OK)
-        # 'safe=False' for objects serialization
+        records = product_serializer.data
+        if len(fields) > 0:
+            records = []
+            for row in product_serializer.data:
+                new_row = {}
+                for field in fields:
+                    if field in ProductSerializer.Meta.fields:
+                        new_row[field] = row.get(field)
+                records.append(new_row)
+        #Get 200
+        return JsonResponse(Response().success(records), safe=False, status=status.HTTP_200_OK)
+            # 'safe=False' for objects serialization
 
     elif request.method == 'POST':
-        print(request)
         product_data = JSONParser().parse(request)
+        print(product_data)
         product_serializer = ProductSerializer(data=product_data)
         if product_serializer.is_valid():
             product_serializer.save()
-            return JsonResponse(Response().success(product_serializer.data), status=status.HTTP_200_OK)
-        return JsonResponse(Response().failed(), status=status.HTTP_404_NOT_FOUND)
-
+            # Create 201
+            return JsonResponse(Response().success(product_serializer.data), status=status.HTTP_201_CREATED)
+        #Invalid Data 400
+        return JsonResponse(Response().resp({}, Constant().BAD_DATA), status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'PUT', 'DELETE'])
 def product_detail(request, pk):
     try:
         product = Product.objects.get(pk=pk)
     except Product.DoesNotExist:
+        # 404 not found
         return JsonResponse({'message': 'The product does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
@@ -47,7 +77,7 @@ def product_detail(request, pk):
         product_serializer = ProductSerializer(product, data=product_data)
         if product_serializer.is_valid():
             product_serializer.save()
-            return JsonResponse(Response().success(product_serializer.data), status=status.HTTP_200_OK)
+            return JsonResponse(Response().resp(Constant().POST,product_serializer.data), status=status.HTTP_201_CREATED)
         return JsonResponse(Response().failed(), status=status.HTTP_404_NOT_FOUND)
 
     elif request.method == 'DELETE':
@@ -125,3 +155,5 @@ def product_comments(request, pk):
             return JsonResponse(Response().success({}), status=status.HTTP_200_OK)
         else:
             return JsonResponse(Response().failed(), status=status.HTTP_404_NOT_FOUND)
+
+        return JsonResponse(Response().resp(Constant().DELETE,{}), status=status.HTTP_204_NO_CONTENT)
