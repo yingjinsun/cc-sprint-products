@@ -85,6 +85,8 @@ def product_comments(request, pk):
                 return JsonResponse(Response().success(res), status=status.HTTP_200_OK)
             return JsonResponse(Response().failed(), status=status.HTTP_404_NOT_FOUND)
         else:
+            if db.get_item("comments", filter) != None:
+                return JsonResponse({'message': 'You can only add one comment for one product!'}, status=status.HTTP_404_NOT_FOUND)
             if request.POST.get("comment") != None:
                 params = {}
                 for key, value in request.POST.items():
